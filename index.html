@@ -303,7 +303,7 @@ const canvas=document.getElementById('scene');
 const isMobile=window.matchMedia('(pointer:coarse)').matches;
 const renderer=new THREE.WebGLRenderer({canvas,antialias:!isMobile,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, isMobile?1.5:2));
-renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.18;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.02;
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 
 const scene=new THREE.Scene();
@@ -324,7 +324,7 @@ let composer=null, bloom=null;
 if(typeof THREE.EffectComposer!=='undefined' && typeof THREE.UnrealBloomPass!=='undefined'){
   composer=new THREE.EffectComposer(renderer);
   composer.addPass(new THREE.RenderPass(scene,camera));
-  bloom=new THREE.UnrealBloomPass(new THREE.Vector2(1,1), 0.55, 0.5, 0.72);
+  bloom=new THREE.UnrealBloomPass(new THREE.Vector2(1,1), 0.26, 0.45, 0.88);
   composer.addPass(bloom);
 }
 
@@ -372,7 +372,7 @@ function applyEnvironment(l){
   sun.material.color.set(d.sunC); sun.position.set(-60, d.sunY, -260); sun.scale.setScalar(d.sunY<60?90:55);
   stars.material.opacity=d.stars;
   document.documentElement.style.setProperty('--accent', hex(d.accent));
-  if(bloom) bloom.strength = d.sunY<60?0.7:0.55;   // a touch more at sunset/dawn
+  if(bloom) bloom.strength = d.sunY<60?0.34:0.26;   // a touch more at sunset/dawn
 }
 
 /* =================== WORLD =================== */
