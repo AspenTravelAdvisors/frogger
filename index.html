@@ -172,9 +172,9 @@ const DEST=[
 const destFor=l=>DEST[(l-1)%DEST.length];
 
 /* =================== AUDIO ENGINE (procedural) =================== */
-let AC=null, master=null, revGain=null, musicGain=null, sfxGain=null, muted=false;
+let AC=null, master=null, revGain=null, musicGain=null, sfxGain=null, muted=false, bgPaused=false;
 function audio(){
-  if(AC) { if(AC.state==='suspended') AC.resume(); return AC; }
+  if(AC) { if(AC.state==='suspended' && !bgPaused) AC.resume(); return AC; }
   try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; }
   master=AC.createGain(); master.gain.value=0.9;
   const comp=AC.createDynamicsCompressor(); comp.threshold.value=-18; comp.ratio.value=4;
@@ -756,7 +756,6 @@ function hideOverlay(){ document.getElementById('overlay').classList.add('hidden
 
 /* =================== LOOP / RESIZE =================== */
 function renderFrame(){ if(composer) composer.render(); else renderer.render(scene,camera); }
-let bgPaused=false;
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){ bgPaused=true; clock.getDelta(); if(AC) AC.suspend(); }
   else{ clock.getDelta(); bgPaused=false; if(AC&&!muted) AC.resume(); } // discard gap
