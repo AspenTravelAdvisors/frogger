@@ -426,7 +426,10 @@ function refreshGateSigns(){ const d=destFor(level); gateMeshes.forEach((G,i)=>{
 function setBanner(){ const d=destFor(level), c=bannerTex.image, g=c.getContext('2d'); g.clearRect(0,0,c.width,c.height);
   g.fillStyle='rgba(6,12,26,0.82)'; g.fillRect(0,0,c.width,c.height); g.strokeStyle=hex(d.accent); g.lineWidth=6; g.strokeRect(12,12,c.width-24,c.height-24);
   g.textAlign='center'; g.textBaseline='middle'; g.fillStyle='#00ff9a'; g.font='44px "Press Start 2P",monospace'; g.fillText('NOW BOARDING',c.width/2,92);
-  g.fillStyle='#f4ead0'; g.font='bold 150px "Cormorant Garamond",serif'; g.fillText(d.city+'  ✈  FLIGHT FC'+String(level).padStart(3,'0'),c.width/2,224); bannerTex.needsUpdate=true; }
+  const txt=d.city+'  ✈  FLIGHT FC'+String(level).padStart(3,'0'); const maxW=c.width-220; let fs=150;
+  g.font='bold '+fs+'px "Cormorant Garamond",serif'; const tw=g.measureText(txt).width;
+  if(tw>maxW){ fs=Math.floor(fs*maxW/tw); g.font='bold '+fs+'px "Cormorant Garamond",serif'; }
+  g.fillStyle='#f4ead0'; g.fillText(txt,c.width/2,224); bannerTex.needsUpdate=true; }
 
 /* =================== VEHICLES & CRAFT =================== */
 const trafficGroup=new THREE.Group(); scene.add(trafficGroup);
@@ -491,11 +494,11 @@ function buildCraft(type){ const g=new THREE.Group(); let L;
     g.add(extrudeSide([[-L/2,0.45],[-L*0.2,0.32],[L*0.2,0.32],[L/2,0.5],[L/2,0.82],[L*0.2,0.7],[-L*0.36,0.7],[-L/2,0.82]],2.0,paint(0x6b3a1e,160,0xffd9a0)));
     g.add(box(L,0.1,2.02,paint(0xf4ead0,80),0,0.84,0)); g.add(box(L*0.34,0.36,1.7,glassMat,L*0.06,1.0,0,false));
     g.add(box(L*0.5,0.16,1.8,paint(0x141009,50),0,0.94,0)); g.add(box(0.1,0.5,0.1,chromeMat,-L*0.45,1.1,0)); }
-  else if(type==='vaporetto'){ L=CELL*4;              // Venice water-bus
-    g.add(box(L,0.7,2.8,paint(0x12324a,80,0xaecbe6),0,0.5,0)); g.add(box(L,0.16,2.84,paint(0xf4ead0,60),0,0.85,0));
-    g.add(box(L*0.82,1.0,2.5,paint(0xeef2f6,70),0,1.4,0));
-    for(let i=-3;i<=3;i++) g.add(box(0.5,0.52,2.54,glassMat,i*L*0.11,1.5,0,false));
-    g.add(box(L*0.16,0.7,1.7,paint(0x12324a,80),-L*0.36,2.0,0)); g.add(box(0.12,1.6,0.12,chromeMat,L*0.42,1.65,0)); }
+  else if(type==='vaporetto'){ L=CELL*4;              // Venice water-bus (kept low so you can see past it)
+    g.add(box(L,0.55,2.7,paint(0x12324a,80,0xaecbe6),0,0.42,0)); g.add(box(L,0.14,2.74,paint(0xf4ead0,60),0,0.72,0));
+    g.add(box(L*0.8,0.58,2.4,paint(0xeef2f6,70),0,1.05,0));
+    for(let i=-3;i<=3;i++) g.add(box(0.5,0.38,2.44,glassMat,i*L*0.11,1.06,0,false));
+    g.add(box(L*0.14,0.46,1.6,paint(0x12324a,80),-L*0.36,1.5,0)); g.add(box(0.1,0.9,0.1,chromeMat,L*0.42,1.3,0)); }
   else if(type==='taxi'){ L=CELL*2.2;                 // Venetian water taxi (motoscafo)
     g.add(extrudeSide([[-L/2,0.5],[-L*0.2,0.34],[L*0.3,0.34],[L/2,0.55],[L/2,0.92],[-L*0.3,0.92],[-L/2,0.92]],2.2,paint(0x12233a,130,0x99c4ff)));
     g.add(box(L,0.12,2.22,chromeMat,0,0.9,0)); g.add(box(L*0.5,0.78,1.9,paint(0x5a3a22,150,0xffd9a0),L*0.02,1.3,0));
@@ -569,7 +572,7 @@ function updateJet(dt){ jetT-=dt; if(jetT<=0 && (!jet.visible)){ flyJet(); jetT=
 
 /* =================== GAME STATE =================== */
 let state='menu', score=0, best=0, lives=3, level=1;
-let frog=null, render={x:0,y:EYE,z:0,hop:0}, yaw=0, pitch=0;
+let frog=null, render={x:0,y:EYE,z:0,hop:0,lift:0}, yaw=0, pitch=0;
 let timeMax=90, timeLeft=90, shake=0, combo=0, fovBase=72, fov=72;
 let intro={t:0,from:new THREE.Vector3(),to:new THREE.Vector3(),look:new THREE.Vector3()};
 let deadT=0, winT=0, started=false;
@@ -694,7 +697,8 @@ function applyCamera(dt){ const k=1-Math.exp(-16*dt);
   render.x+=(frog.x-render.x)*k; render.z+=(rowZ(frog.gy)-render.z)*k;
   if(render.hop>0) render.hop=Math.max(0,render.hop-dt*6.5);
   const arc=Math.sin((1-render.hop)*Math.PI)*0.5; const dip=render.hop>0.85?(render.hop-0.85)*-2:0;
-  render.y=EYE+(frog&&frog.ride?0.3:0)+arc+dip;
+  const liftTarget=(frog&&frog.ride)?0.95:0; render.lift+=(liftTarget-render.lift)*(1-Math.exp(-9*dt)); // stand on the deck
+  render.y=EYE+render.lift+arc+dip;
   let sx=0,sy=0; if(shake>0){ shake=Math.max(0,shake-dt*2.4); sx=(Math.random()-.5)*shake*0.7; sy=(Math.random()-.5)*shake*0.7; }
   camera.position.set(render.x+sx,render.y+sy,render.z); camera.rotation.set(pitch,yaw,0,'YXZ');
   fov+=(fovBase-fov)*(1-Math.exp(-10*dt)); camera.fov=fov; camera.updateProjectionMatrix();
