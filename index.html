@@ -46,6 +46,8 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
 #lives{ position:absolute; right:16px; bottom:max(16px,env(safe-area-inset-bottom)); font-size:8px; color:var(--champ);
   text-align:right; text-shadow:0 0 8px var(--accent); }
 #lives .frogs{ font-size:14px; letter-spacing:3px; }
+#lives.lifeup{ animation:lifeup .7s ease-out; }
+@keyframes lifeup{ 0%{ transform:scale(1); text-shadow:0 0 8px var(--accent);} 30%{ transform:scale(1.35); color:var(--neon); text-shadow:0 0 22px var(--neon);} 100%{ transform:scale(1);} }
 #combo{ position:absolute; left:50%; transform:translateX(-50%); top:118px; font-size:11px; letter-spacing:2px;
   color:var(--gold); opacity:0; transition:opacity .3s; text-shadow:0 0 14px var(--gold); }
 #timerWrap{ position:absolute; left:50%; transform:translateX(-50%); bottom:max(16px,env(safe-area-inset-bottom)); width:min(46vw,280px); }
@@ -152,7 +154,8 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
      Cross the <span class="g">arrivals boulevard</span> and the <span class="g">marina canal</span> to reach your gate.<br><br>
      <span class="g">WASD / ARROWS</span> or the pad to hop · <span class="g">DRAG</span> to look around.<br>
      <span class="g">SCROLL / PINCH</span> to zoom out and meet your frog in 3rd person — or zoom in for 1st.<br>
-     Thread the traffic for <span class="g">CLOSE CALL</span> bonuses and build a streak.</p>
+     Thread the traffic for <span class="g">CLOSE CALL</span> bonuses and build a streak.<br>
+     Earn a <span class="g">SPARE FROG</span> every 2,000 miles and for boarding all gates.</p>
   <div class="rule"></div>
   <button id="startBtn">BOARD NOW</button>
 </div>
@@ -241,6 +244,7 @@ const SFX={
   die:  ()=>{ voice(280,.5,{type:'sawtooth',vol:.18,to:60,rev:.3}); noiseBurst(.3,{vol:.1,lp:1400}); },
   gate: ()=>{ [880,1320,1760,2640].forEach((f,i)=>voice(f,1.1,{type:'sine',vol:.12/(i*0.4+1),rev:.5,when:0})); voice(660,.6,{type:'sine',vol:.1,rev:.5}); },
   level:()=>{ [523,659,784,1047,1319,1568].forEach((f,i)=>voice(f,.5,{type:'triangle',vol:.16,rev:.45,when:i*.08})); chordSwell(); },
+  life: ()=>{ [784,1047,1319,1760].forEach((f,i)=>voice(f,.45,{type:'triangle',vol:.17,rev:.4,when:i*.07})); },
   over: ()=>[523,392,330,262,196].forEach((f,i)=>voice(f,.7,{type:'sawtooth',vol:.16,rev:.4,when:i*.22})),
   jet:  (pan)=>noiseBurst(2.2,{vol:.12,lp:900,sweepTo:240,pan}),
 };
@@ -649,7 +653,10 @@ let frog=null, render={x:0,y:EYE,z:0,hop:0,lift:0}, yaw=0, pitch=0;
 let tiltOn=false, tiltYaw=0, tiltPitch=0, tiltBase=null; const tiltSens=0.016;
 let timeMax=90, timeLeft=90, shake=0, combo=0, fovBase=72, fov=72;
 let zoom=0; const ZMAX=16; // camera pull-back distance: 0 = first person, ZMAX = far third person
+const START_ZOOM=ZMAX*0.4, START_PITCH=0.17; // open the round at a 3rd-person, tilted-up framing
 let frogModel=null;
+// extra lives: +1 every EXTRA_EVERY miles and +1 for boarding all gates (clearing a level), capped at MAXLIVES
+const EXTRA_EVERY=2000, MAXLIVES=7; let nextExtra=EXTRA_EVERY;
 const camModeTxtEl=document.getElementById('camModeTxt'), camBarEl=document.getElementById('camBar');
 let intro={t:0,from:new THREE.Vector3(),to:new THREE.Vector3(),look:new THREE.Vector3()};
 let deadT=0, winT=0, started=false;
@@ -660,7 +667,7 @@ function gatesFilled(){ return gateMeshes.filter(G=>G.filled).length; }
 
 function startGame(){
   enableTilt(); // request motion permission while still inside the tap gesture (iOS)
-  hideOverlay(); score=0; lives=3; level=1; combo=0;
+  hideOverlay(); score=0; lives=3; level=1; combo=0; nextExtra=EXTRA_EVERY; zoom=START_ZOOM;
   applyEnvironment(level); applyLevel(true); resetFrog();
   audio(); startMusic();
   beginIntro(); SFX.gate(); showBanner(); updateHUD();
@@ -765,7 +772,7 @@ function update(dt){
   if(state==='intro'){ intro.t+=dt; const t=clamp(intro.t/1.9,0,1); const e=easeIO(t);
     camera.position.lerpVectors(intro.from,intro.to,e);
     const lk=new THREE.Vector3().lerpVectors(intro.look,new THREE.Vector3(frog.x,EYE-0.2,rowZ(frog.gy)-6),e); camera.lookAt(lk);
-    if(intro.t>2.0){ state='playing'; yaw=0; pitch=0; showHint('HOP TO YOUR GATE · DRAG TO LOOK AROUND'); } return; }
+    if(intro.t>2.0){ state='playing'; yaw=0; pitch=START_PITCH; showHint('HOP TO YOUR GATE · DRAG TO LOOK · SCROLL/PINCH TO ZOOM'); } return; }
 
   if(state==='playing'){
     timeLeft-=dt; if(timeLeft<=0){ kill('time'); }
@@ -800,7 +807,7 @@ function resolveGate(){ const gx=xCell(frog.x), G=gateMeshes.find(g=>g.gx===gx);
   if(G&&!G.filled){ combo++; const mult=1+combo*0.2; const gain=Math.round((90+level*15)*mult); score+=gain; G.filled=true; placeFrogAtGate(G);
     refreshGateSigns(); SFX.gate(); burst(cellX(gx),1,rowZ(ROW_GATES),{n:24,spread:2.5,up:7,colors:[0x00ff9a,0xe8c879,0xffffff],g:10}); popup('GATE +'+gain); showCombo();
     best=Math.max(best,score); updateHUD();
-    if(gatesFilled()>=5){ score+=400; best=Math.max(best,score); SFX.level(); confetti(); state='win'; winT=2.6; updateHUD(); } else { resetFrog(); state='playing'; } }
+    if(gatesFilled()>=5){ score+=400; best=Math.max(best,score); gainLife('boarded'); SFX.level(); confetti(); state='win'; winT=2.6; updateHUD(); } else { resetFrog(); state='playing'; } }
   else kill('car'); }
 function placeFrogAtGate(G){ const f=new THREE.Group(); const gn=M(0x2fae4a,{emissive:0x0c5a22,ei:.5,flat:true});
   f.add(box(0.9,0.6,0.9,gn,0,0.4,0)); f.add(box(0.5,0.4,0.5,gn,0,0.95,0.1));
@@ -855,7 +862,12 @@ function drawRadar(){ const w=radar.width,h=radar.height; rctx.clearRect(0,0,w,h
   if(frog){ rctx.fillStyle='#00ff9a'; const fx=xF(render.x),fy=yF(frog.gy);
     const c=cardinal(yaw), r={dgx:-c.dgy,dgy:c.dgx}, ax=fx+c.dgx*5,ay=fy+c.dgy*5,bx=fx-c.dgx*2,by=fy-c.dgy*2;
     rctx.beginPath(); rctx.moveTo(ax,ay); rctx.lineTo(bx+r.dgx*3.5,by+r.dgy*3.5); rctx.lineTo(bx-r.dgx*3.5,by-r.dgy*3.5); rctx.closePath(); rctx.fill(); } }
-function updateHUD(){ document.getElementById('score').textContent=score; document.getElementById('best').textContent=best;
+function gainLife(reason){ if(lives<MAXLIVES){ lives++; const el=document.getElementById('lives'); if(el){ el.classList.remove('lifeup'); void el.offsetWidth; el.classList.add('lifeup'); }
+    popup(reason==='boarded'?'+1 LIFE · ALL ABOARD':'+1 LIFE · FREQUENT FLYER'); SFX.life(); }
+  best=Math.max(best,score); }
+function checkExtraLife(){ while(score>=nextExtra){ nextExtra+=EXTRA_EVERY; gainLife('miles'); } }
+function updateHUD(){ checkExtraLife();
+  document.getElementById('score').textContent=score; document.getElementById('best').textContent=best;
   document.getElementById('frogs').textContent='✈'.repeat(Math.max(0,lives));
   const g=document.getElementById('gates'); g.innerHTML=''; for(let i=0;i<5;i++){ const c=document.createElement('div'); c.className='gateChip'+(gateMeshes[i]&&gateMeshes[i].filled?' done':''); g.appendChild(c); } }
 function drawTimer(){ const p=clamp(timeLeft/timeMax,0,1), f=document.getElementById('timerFill'); f.style.width=(p*100)+'%';
