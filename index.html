@@ -758,8 +758,8 @@ function hideOverlay(){ document.getElementById('overlay').classList.add('hidden
 function renderFrame(){ if(composer) composer.render(); else renderer.render(scene,camera); }
 let bgPaused=false;
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){ bgPaused=true; clock.getDelta(); }
-  else{ clock.getDelta(); bgPaused=false; } // discard gap
+  if(document.hidden){ bgPaused=true; clock.getDelta(); if(AC) AC.suspend(); }
+  else{ clock.getDelta(); bgPaused=false; if(AC&&!muted) AC.resume(); } // discard gap
 });
 function animate(){ requestAnimationFrame(animate); if(bgPaused) return;
   const dt=Math.min(clock.getDelta(),0.05);
