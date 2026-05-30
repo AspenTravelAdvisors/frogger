@@ -31,7 +31,21 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
   color:var(--gold); pointer-events:auto; cursor:pointer; text-shadow:0 0 12px rgba(232,200,121,.6); }
 #muteBtn{ right:16px; }
 #musicBtn{ right:40px; }
-#fsBtn{ right:66px; display:none; }
+#pauseBtn{ position:absolute; top:max(12px,env(safe-area-inset-top)); right:64px; font-size:14px;
+  color:var(--gold); pointer-events:auto; cursor:pointer; text-shadow:0 0 12px rgba(232,200,121,.6); display:none; }
+#fsBtn{ right:88px; display:none; }
+#pauseScreen{ position:fixed; inset:0; z-index:38; display:none; flex-direction:column; align-items:center; justify-content:center;
+  gap:18px; text-align:center; background:radial-gradient(ellipse at center, rgba(6,10,24,.5), rgba(2,3,10,.82)); backdrop-filter:blur(2px); }
+#pauseScreen.show{ display:flex; }
+#pauseScreen .kicker{ font-size:8px; letter-spacing:6px; color:var(--gold); opacity:.9; }
+#pauseScreen h1{ font-family:'Cormorant Garamond',serif; font-weight:700; font-size:clamp(40px,12vw,84px); color:var(--champ);
+  letter-spacing:6px; text-shadow:0 0 36px var(--accent); }
+#pauseScreen p{ font-size:8px; line-height:2.4; color:var(--champ); opacity:.85; }
+#pauseScreen p .g{ color:var(--gold); }
+#pauseScreen button{ pointer-events:auto; font-family:'Press Start 2P',monospace; font-size:clamp(9px,2.6vw,12px); letter-spacing:2px;
+  color:var(--ink); background:linear-gradient(180deg,var(--champ),var(--gold)); border:none; padding:16px 32px; border-radius:5px;
+  cursor:pointer; box-shadow:0 0 28px rgba(232,200,121,.55), 0 6px 0 #6b5320; }
+#pauseScreen button:active{ transform:translateY(4px); box-shadow:0 0 28px rgba(232,200,121,.55), 0 2px 0 #6b5320; }
 #dest{ position:absolute; top:max(12px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%); text-align:center; }
 #dest .nb{ font-size:7px; letter-spacing:3px; color:var(--neon); opacity:.9; }
 #dest .city{ font-family:'Cormorant Garamond',serif; font-weight:700; font-size:24px; letter-spacing:5px;
@@ -125,6 +139,7 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
 <div id="hud">
   <div class="brand">✈ FROG CLASS<small>2.0 · AERO GRENOUILLE</small></div>
   <div id="fsBtn">⛶</div>
+  <div id="pauseBtn">⏸</div>
   <div id="musicBtn">♫</div>
   <div id="muteBtn">♪</div>
   <div id="dest"><div class="nb">— NOW BOARDING —</div><div class="city" id="destCity">ASPEN</div>
@@ -138,6 +153,13 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
   <div id="hint"></div>
   <div id="popups"></div>
   <div id="camMode">CAM&nbsp;<b id="camModeTxt">1ST PERSON</b><span class="bar"><i id="camBar"></i></span></div>
+</div>
+
+<div id="pauseScreen">
+  <div class="kicker">IN THE LOUNGE</div>
+  <h1>PAUSED</h1>
+  <p><span class="g">P</span> or <span class="g">ESC</span> to resume · tap <span class="g">⏸</span> anytime</p>
+  <button id="resumeBtn">RESUME BOARDING</button>
 </div>
 
 <div id="dpad">
@@ -653,7 +675,8 @@ let frog=null, render={x:0,y:EYE,z:0,hop:0,lift:0}, yaw=0, pitch=0;
 let tiltOn=false, tiltYaw=0, tiltPitch=0, tiltBase=null; const tiltSens=0.016;
 let timeMax=90, timeLeft=90, shake=0, combo=0, fovBase=72, fov=72;
 let zoom=0; const ZMAX=16; // camera pull-back distance: 0 = first person, ZMAX = far third person
-const START_ZOOM=ZMAX*0.4, START_PITCH=0.30; // 3rd-person framing; nets ~+0.18 (≈20% up) after the camera's downward bias
+const START_ZOOM=ZMAX*0.46, START_PITCH=-0.42; // open high & looking down over the frog (classic 3rd-person framing)
+let paused=false;
 let frogModel=null;
 // extra lives: +1 every EXTRA_EVERY miles and +1 for boarding all gates (clearing a level), capped at MAXLIVES
 const EXTRA_EVERY=2000, MAXLIVES=7; let nextExtra=EXTRA_EVERY;
@@ -667,7 +690,8 @@ function gatesFilled(){ return gateMeshes.filter(G=>G.filled).length; }
 
 function startGame(){
   enableTilt(); // request motion permission while still inside the tap gesture (iOS)
-  hideOverlay(); score=0; lives=3; level=1; combo=0; nextExtra=EXTRA_EVERY; zoom=START_ZOOM;
+  hideOverlay(); togglePause(false); document.getElementById('pauseBtn').style.display='block';
+  score=0; lives=3; level=1; combo=0; nextExtra=EXTRA_EVERY; zoom=START_ZOOM;
   applyEnvironment(level); applyLevel(true); resetFrog();
   audio(); startMusic();
   beginIntro(); SFX.gate(); showBanner(); updateHUD();
@@ -683,8 +707,19 @@ function beginIntro(){ state='intro'; intro.t=0; if(frogModel) frogModel.visible
 
 /* =================== INPUT =================== */
 const keyMap={ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right'};
-document.addEventListener('keydown',e=>{ if(keyMap[e.key]){e.preventDefault();hop(keyMap[e.key]);} if(e.key==='m'||e.key==='M') toggleMute();
+document.addEventListener('keydown',e=>{
+  if(e.key==='p'||e.key==='P'||e.key==='Escape'){ e.preventDefault(); togglePause(); return; }
+  if(paused) return;
+  if(keyMap[e.key]){e.preventDefault();hop(keyMap[e.key]);} if(e.key==='m'||e.key==='M') toggleMute();
   if(e.key==='-'||e.key==='_') zoom=clamp(zoom+1.2,0,ZMAX); if(e.key==='='||e.key==='+') zoom=clamp(zoom-1.2,0,ZMAX); });
+function canPause(){ return state==='playing'||state==='intro'||state==='dead'||state==='win'; }
+function togglePause(force){ const want=(force===undefined)?!paused:force;
+  if(want && !canPause()) return; if(want===paused) return;
+  paused=want; document.getElementById('pauseScreen').classList.toggle('show',paused);
+  document.getElementById('pauseBtn').textContent=paused?'▶':'⏸';
+  if(paused){ if(AC) AC.suspend(); } else { clock.getDelta(); if(AC&&!muted&&!bgPaused) AC.resume(); } } // discard the paused gap
+document.getElementById('pauseBtn').addEventListener('click',()=>togglePause());
+document.getElementById('resumeBtn').addEventListener('click',()=>togglePause(false));
 function bindDpad(id,dir){ const el=document.getElementById(id);
   const press=e=>{e.preventDefault();el.classList.add('pressed');hop(dir);}; const rel=e=>{e.preventDefault();el.classList.remove('pressed');};
   el.addEventListener('touchstart',press,{passive:false}); el.addEventListener('touchend',rel,{passive:false});
@@ -889,6 +924,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 function animate(){ requestAnimationFrame(animate); if(bgPaused) return;
   const dt=Math.min(clock.getDelta(),0.05);
+  if(paused){ renderFrame(); return; } // freeze the world, keep the last frame on screen
   update(dt); if(frog && state!=='intro') applyCamera(dt);
   if(hintT>0){ hintT-=dt; if(hintT<=0) document.getElementById('hint').style.opacity=0; }
   if(comboT>0){ comboT-=dt; if(comboT<=0) document.getElementById('combo').style.opacity=0; }
