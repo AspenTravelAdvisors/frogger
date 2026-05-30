@@ -629,8 +629,10 @@ function handleOrientation(e){
   if(so===90){  const t=beta; beta=-gamma; gamma=t; }
   else if(so===-90||so===270){ const t=beta; beta=gamma; gamma=-t; }
   if(!tiltBase) tiltBase={beta,gamma};
-  tiltYaw   = clamp((gamma - tiltBase.gamma)*tiltSens, -1.3, 1.3);
-  tiltPitch = clamp(-(beta  - tiltBase.beta )*tiltSens, -0.8, 0.6);
+  const dGamma=gamma-tiltBase.gamma, DZ=4;
+  const yawIn=Math.abs(dGamma)<DZ ? 0 : (dGamma-Math.sign(dGamma)*DZ);
+  tiltYaw   = clamp(yawIn*tiltSens, -1.3, 1.3);
+  tiltPitch = clamp((beta - tiltBase.beta)*tiltSens, -0.8, 0.6);
 }
 function recenterTilt(){ tiltBase=null; tiltYaw=0; tiltPitch=0; }
 (function initTilt(){
