@@ -677,7 +677,7 @@ let frog=null, render={x:0,y:EYE,z:0,hop:0,lift:0}, yaw=0, pitch=0;
 let tiltOn=false, tiltYaw=0, tiltPitch=0, tiltBase=null; const tiltSens=0.016;
 let timeMax=90, timeLeft=90, shake=0, combo=0, fovBase=72, fov=72;
 let zoom=0; const ZMAX=16; // camera pull-back distance: 0 = first person, ZMAX = far third person
-const START_ZOOM=ZMAX*0.30, START_PITCH=-0.20; // open above & slightly behind the frog, looking gently down
+const START_ZOOM=ZMAX*0.50, START_PITCH=-0.20; // open above & slightly behind the frog, looking gently down
 let paused=false;
 let frogModel=null;
 // extra lives: +1 every EXTRA_EVERY miles and +1 for boarding all gates (clearing a level), capped at MAXLIVES
