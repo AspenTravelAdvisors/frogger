@@ -852,6 +852,7 @@ function confetti(){ for(let i=0;i<5;i++) burst(cellX([2,4,6,8,10][i]),5,rowZ(RO
 function nextLevel(){ const fade=document.getElementById('fade'); fade.style.opacity=1;
   setTimeout(()=>{ level++; applyEnvironment(level); applyLevel(false); resetFrog(); beginIntro(); SFX.gate(); showBanner(); updateHUD(); fade.style.opacity=0; },480); }
 function gameOver(){ best=Math.max(best,score); SFX.over(); state='over';
+  document.getElementById('pauseBtn').style.display='none';
   showOverlay(`<div class="kicker">FLIGHT MISSED</div><h1>GAME OVER</h1><div class="rule"></div>
     <div class="stat">MILES FLOWN <b>${score}</b><br>PERSONAL BEST <b>${best}</b><br>REACHED <b>${destFor(level).city}</b></div>
     <div class="rule"></div><button id="startBtn">REBOOK FLIGHT</button>`); }
