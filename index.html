@@ -283,7 +283,7 @@ let composer=null, bloom=null;
 if(typeof THREE.EffectComposer!=='undefined' && typeof THREE.UnrealBloomPass!=='undefined'){
   composer=new THREE.EffectComposer(renderer);
   composer.addPass(new THREE.RenderPass(scene,camera));
-  bloom=new THREE.UnrealBloomPass(new THREE.Vector2(1,1), 0.85, 0.55, 0.62);
+  bloom=new THREE.UnrealBloomPass(new THREE.Vector2(1,1), 0.55, 0.5, 0.72);
   composer.addPass(bloom);
 }
 
@@ -331,7 +331,7 @@ function applyEnvironment(l){
   sun.material.color.set(d.sunC); sun.position.set(-60, d.sunY, -260); sun.scale.setScalar(d.sunY<60?90:55);
   stars.material.opacity=d.stars;
   document.documentElement.style.setProperty('--accent', hex(d.accent));
-  if(bloom) bloom.strength = d.sunY<60?1.05:0.85;   // dialed up for sunset/dawn
+  if(bloom) bloom.strength = d.sunY<60?0.7:0.55;   // a touch more at sunset/dawn
 }
 
 /* =================== WORLD =================== */
@@ -431,53 +431,111 @@ function setBanner(){ const d=destFor(level), c=bannerTex.image, g=c.getContext(
 /* =================== VEHICLES & CRAFT =================== */
 const trafficGroup=new THREE.Group(); scene.add(trafficGroup);
 let lanes=[];
-const winMat=B(0x9fd8ff,{opacity:.55});
-function makeVehicle(type,dir){ const g=new THREE.Group(); const fwd=dir>0?1:-1; let len;
-  if(type==='limo'){ len=CELL*2.8; g.add(box(len,1.1,1.9,M(0x070709,{shininess:120,specular:0x99aacc}),0,.75,0));
-    g.add(box(CELL*2.1,.7,1.7,M(0x0d0d16,{shininess:120}),0,1.5,0)); g.add(box(CELL*1.8,.55,1.55,winMat,0,1.55,0));
-    g.add(box(.6,.45,1.92,M(0xe8c879,{emissive:0xe8c879,ei:.6}),0,1.0,0)); }
-  else if(type==='sedan'){ len=CELL*1.7; g.add(box(len,.9,1.8,M(0xcdd6e2,{shininess:120,specular:0xffffff}),0,.6,0)); g.add(box(CELL*1.0,.7,1.6,winMat,0,1.2,0)); }
-  else if(type==='service'){ len=CELL*1.7; g.add(box(len,.95,1.8,M(0x10141c,{shininess:110}),0,.62,0)); g.add(box(CELL*1.0,.7,1.65,winMat,0,1.25,0));
-    g.add(box(1.2,.5,.6,M(0xe8c879,{emissive:0xe8c879,ei:.8}),0,1.8,0)); }
-  else if(type==='sport'){ len=CELL*1.6; g.add(box(len,.6,1.7,M(0x8a0e1e,{emissive:0x2a0006,ei:.4,shininess:140,specular:0xff6677}),0,.45,0)); g.add(box(CELL*.8,.42,1.5,winMat,0,.82,0)); }
-  else { len=CELL*2.6; g.add(box(len,1.7,2.0,M(0xf4ead0,{shininess:90}),0,1.0,0)); g.add(box(CELL*2.3,.7,1.8,winMat,0,1.35,0));
-    g.add(box(.4,1.1,2.0,M(0xe8c879,{emissive:0xe8c879,ei:.6}),-CELL*1.0,.9,0)); }
-  g.add(box(.3,.4,1.6,B(0xfff2c0,{add:true}),fwd*(len/2-.2),.6,0,false)); // headlights
-  g.add(box(.3,.4,1.6,B(0xff4030,{add:true}),-fwd*(len/2-.2),.6,0,false)); // tails
-  g.userData.len=len; return g; }
-function makeCraft(type){ const g=new THREE.Group(); let len;
-  if(type==='yacht'){ len=CELL*3; g.add(box(len,.7,2.4,M(0xf6f1e6,{shininess:90}),0,.4,0)); g.add(box(CELL*1.5,.9,1.9,M(0xeae3d2,{shininess:80}),-CELL*.4,1.1,0));
-    g.add(box(CELL*1.0,.5,1.6,winMat,-CELL*.4,1.45,0)); g.add(box(.16,2.6,.16,M(0xe8c879,{emissive:0xe8c879,ei:.6}),CELL*1.1,1.7,0)); }
-  else if(type==='barge'){ len=CELL*4; g.add(box(len,.6,2.6,M(0x223044,{shininess:60}),0,.35,0));
-    for(let i=-1;i<=1;i++) g.add(box(1.2,1.0,1.2,M(0x6e0d1c,{emissive:0x2a0006,ei:.4}),i*CELL*.9,1.0,.4));
-    g.add(box(len,.1,2.6,B(0xe8c879,{opacity:.3,add:true}),0,.66,0,false)); }
-  else if(type==='speedboat'){ len=CELL*1.8; g.add(box(len,.5,1.8,M(0x10233f,{emissive:0x06325a,ei:.4,shininess:120}),0,.35,0)); g.add(box(CELL*.7,.4,1.4,winMat,CELL*.3,.7,0)); }
-  else { len=CELL*2.2; g.add(box(len,.6,2.0,M(0x0e3a2a,{emissive:0x06301f,ei:.4}),0,.4,0)); g.add(box(CELL*1.4,.8,1.7,M(0x125c40,{shininess:70}),0,1.0,0)); g.add(box(CELL*1.2,.5,1.5,winMat,0,1.3,0)); }
-  g.userData.len=len; return g; }
+const GEO_CYL=new THREE.CylinderGeometry(1,1,1,16);
+const paint=(c,sh=120,sp=0xffffff)=>M(c,{shininess:sh,specular:sp});
+const glassMat=M(0x0a141f,{shininess:170,specular:0xaad0ff,opacity:.6});
+const chromeMat=M(0xdfe6ee,{emissive:0x20262e,ei:.25,shininess:170,specular:0xffffff});
+const goldMat=M(0xe8c879,{emissive:0x6a5316,ei:.5,shininess:120});
+const tireMat=M(0x0b0b0e,{shininess:18}), rimMat=M(0xc6cdd6,{emissive:0x232a31,ei:.2,shininess:160,specular:0xffffff});
+const headMat=B(0xfff4d0,{add:true}), tailMat=B(0xff3322,{add:true}), ledMat=B(0xeaf6ff,{add:true});
+function extrudeSide(pts,depth,mat){ const sh=new THREE.Shape(); sh.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++) sh.lineTo(pts[i][0],pts[i][1]); sh.closePath();
+  const geo=new THREE.ExtrudeGeometry(sh,{depth,bevelEnabled:false,steps:1}); geo.translate(0,0,-depth/2);
+  const m=new THREE.Mesh(geo,mat); m.castShadow=true; return m; }
+function wheel(r,th){ const g=new THREE.Group();
+  const t=new THREE.Mesh(GEO_CYL,tireMat); t.scale.set(r,th,r); t.rotation.x=Math.PI/2; t.castShadow=true;
+  const rim=new THREE.Mesh(GEO_CYL,rimMat); rim.scale.set(r*0.52,th*1.06,r*0.52); rim.rotation.x=Math.PI/2; g.add(t,rim); return g; }
+function addWheels(g,L,W,r,inset=0.32){ const zz=W/2-0.12; for(const x of[-L*inset,L*inset]) for(const z of[-zz,zz]){ const w=wheel(r,0.42); w.position.set(x,r,z); g.add(w); } }
+
+const vCache={}, cCache={};
+function makeVehicle(type){ if(!vCache[type]) vCache[type]=buildVehicle(type); return vCache[type].clone(); }
+function makeCraft(type){ if(!cCache[type]) cCache[type]=buildCraft(type); return cCache[type].clone(); }
+
+function buildVehicle(type){ const g=new THREE.Group(); let L,W=2.0;
+  if(type==='tesla'){ L=CELL*1.7; W=2.0;            // Model S — smooth fastback
+    g.add(extrudeSide([[-L/2,0.45],[-L*0.34,0.92],[-L*0.12,1.02],[0,1.6],[L*0.30,1.5],[L/2,0.98],[L/2,0.45]],W,paint(0xe6e9ef,150)));
+    g.add(box(L*0.5,0.46,W*0.92,glassMat,L*0.05,1.2,0,false));
+    g.add(box(0.16,0.14,W*0.96,ledMat,-L/2+0.05,0.95,0,false)); g.add(box(0.16,0.14,W*0.9,tailMat,L/2-0.04,1.0,0,false));
+    addWheels(g,L,W,0.5); }
+  else if(type==='cybertruck'){ L=CELL*2.4; W=2.18; const stl=paint(0xb9bdc4,130); stl.flatShading=true;
+    g.add(extrudeSide([[-L/2,0.5],[-L/2+0.3,1.15],[-L*0.12,2.42],[L*0.16,2.42],[L*0.16,1.55],[L/2,1.4],[L/2,0.5]],W,stl));
+    g.add(box(L*0.46,0.62,W*0.84,glassMat,-L*0.02,1.85,0,false));
+    g.add(box(0.16,0.1,W*0.99,ledMat,-L/2+0.02,1.12,0,false)); g.add(box(0.16,0.1,W*0.99,tailMat,L/2-0.02,1.42,0,false));
+    addWheels(g,L,W,0.72,0.3); }
+  else if(type==='lambo'){ L=CELL*1.6; W=2.06;       // low wedge supercar
+    g.add(extrudeSide([[-L/2,0.3],[-L*0.16,0.5],[0,0.9],[L*0.18,1.0],[L*0.32,0.96],[L/2,0.64],[L/2,0.3]],W,paint(0xd21020,160,0xff9090)));
+    g.add(box(L*0.32,0.3,W*0.84,glassMat,L*0.08,1.02,0,false));
+    g.add(box(0.16,0.12,W*0.84,ledMat,-L/2+0.04,0.6,0,false)); g.add(box(0.18,0.14,W*0.9,tailMat,L/2-0.04,0.82,0,false));
+    addWheels(g,L,W,0.52,0.3); }
+  else if(type==='gwagon'){ L=CELL*1.7; W=2.12; const bk=paint(0x0c0c11,140,0xaab2c0);
+    g.add(box(L,0.9,W,bk,0,0.68,0)); g.add(box(L*0.9,0.78,W*0.98,bk,0.05,1.45,0));
+    g.add(box(L*0.78,0.6,W*0.92,glassMat,0.05,1.5,0,false));
+    g.add(box(0.16,0.55,W*0.92,chromeMat,-L/2+0.02,0.85,0));         // grille
+    g.add(box(0.2,0.2,0.5,headMat,-L/2+0.04,0.95,W*0.34,false)); g.add(box(0.2,0.2,0.5,headMat,-L/2+0.04,0.95,-W*0.34,false));
+    g.add(box(0.16,0.5,0.5,tailMat,L/2-0.02,1.4,W*0.34,false));      // spare-wheel tail box vibe
+    addWheels(g,L,W,0.56); }
+  else { L=CELL*2.8; W=2.0; const bk=paint(0x07070a,150,0x99aacc);  // stretch limo
+    g.add(box(L,0.95,W,bk,0,0.62,0)); g.add(box(L*0.86,0.64,W*0.94,bk,0,1.28,0));
+    g.add(box(L*0.82,0.5,W*0.9,glassMat,0,1.32,0,false));
+    g.add(box(L,0.12,W*1.01,goldMat,0,0.98,0));                       // gold beltline
+    g.add(box(0.16,0.14,W*0.9,headMat,-L/2+0.04,0.7,0,false)); g.add(box(0.16,0.14,W*0.9,tailMat,L/2-0.04,0.7,0,false));
+    const zz=W/2-0.12; for(const x of[-L*0.36,-L*0.06,L*0.34]) for(const z of[-zz,zz]){ const w=wheel(0.5,0.42); w.position.set(x,0.5,z); g.add(w);} }
+  g.userData.len=L; return g; }
+
+function buildCraft(type){ const g=new THREE.Group(); let L;
+  if(type==='yacht'){ L=CELL*3;
+    g.add(box(L,0.7,2.6,paint(0xf6f1e6,110),0,0.55,0)); g.add(box(L*0.5,0.85,2.1,paint(0xece5d4,90),-L*0.12,1.2,0));
+    g.add(box(L*0.46,0.5,1.7,glassMat,-L*0.12,1.55,0,false)); g.add(box(L*0.42,0.28,1.0,paint(0xece5d4,90),L*0.3,1.0,0));
+    g.add(box(0.12,2.6,0.12,chromeMat,L*0.34,1.95,0)); g.add(box(L,0.12,2.62,goldMat,0,0.92,0)); }
+  else if(type==='riva'){ L=CELL*1.8;                 // Riva mahogany speedboat
+    g.add(extrudeSide([[-L/2,0.45],[-L*0.2,0.32],[L*0.2,0.32],[L/2,0.5],[L/2,0.82],[L*0.2,0.7],[-L*0.36,0.7],[-L/2,0.82]],2.0,paint(0x6b3a1e,160,0xffd9a0)));
+    g.add(box(L,0.1,2.02,paint(0xf4ead0,80),0,0.84,0)); g.add(box(L*0.34,0.36,1.7,glassMat,L*0.06,1.0,0,false));
+    g.add(box(L*0.5,0.16,1.8,paint(0x141009,50),0,0.94,0)); g.add(box(0.1,0.5,0.1,chromeMat,-L*0.45,1.1,0)); }
+  else if(type==='vaporetto'){ L=CELL*4;              // Venice water-bus
+    g.add(box(L,0.7,2.8,paint(0x12324a,80,0xaecbe6),0,0.5,0)); g.add(box(L,0.16,2.84,paint(0xf4ead0,60),0,0.85,0));
+    g.add(box(L*0.82,1.0,2.5,paint(0xeef2f6,70),0,1.4,0));
+    for(let i=-3;i<=3;i++) g.add(box(0.5,0.52,2.54,glassMat,i*L*0.11,1.5,0,false));
+    g.add(box(L*0.16,0.7,1.7,paint(0x12324a,80),-L*0.36,2.0,0)); g.add(box(0.12,1.6,0.12,chromeMat,L*0.42,1.65,0)); }
+  else if(type==='taxi'){ L=CELL*2.2;                 // Venetian water taxi (motoscafo)
+    g.add(extrudeSide([[-L/2,0.5],[-L*0.2,0.34],[L*0.3,0.34],[L/2,0.55],[L/2,0.92],[-L*0.3,0.92],[-L/2,0.92]],2.2,paint(0x12233a,130,0x99c4ff)));
+    g.add(box(L,0.12,2.22,chromeMat,0,0.9,0)); g.add(box(L*0.5,0.78,1.9,paint(0x5a3a22,150,0xffd9a0),L*0.02,1.3,0));
+    g.add(box(L*0.46,0.5,1.7,glassMat,L*0.02,1.36,0,false)); g.add(box(L*0.3,0.1,1.7,paint(0xf4ead0,80),-L*0.32,0.95,0));
+    g.add(box(0.1,0.5,0.1,chromeMat,-L*0.46,1.1,0)); }
+  else { L=CELL*3;                                     // gondola
+    const blk=paint(0x0a0a0d,180,0x99aacc);
+    g.add(extrudeSide([[-L/2,1.3],[-L*0.34,0.78],[0,0.7],[L*0.34,0.78],[L/2,1.18],[L*0.30,0.5],[0,0.38],[-L*0.30,0.5]],1.05,blk));
+    g.add(box(L*0.5,0.1,0.86,paint(0x6e0d1c,30),0,0.82,0)); g.add(box(0.7,0.4,0.78,goldMat,0,0.98,0)); // seat
+    const ferro=new THREE.Group(); ferro.position.set(-L/2,1.45,0); ferro.add(box(0.12,1.0,0.16,chromeMat,0,0,0));
+    for(let i=0;i<5;i++) ferro.add(box(0.5,0.09,0.14,chromeMat,0.2,-0.05-i*0.16,0)); g.add(ferro);
+    const gd=new THREE.Group(); gd.position.set(L*0.34,0.78,0.0);
+    gd.add(box(0.4,0.95,0.3,paint(0x15151c,40),0,0.7,0)); gd.add(box(0.44,0.2,0.34,B(0xffffff,{}),0,0.92,0));
+    const head=new THREE.Mesh(new THREE.SphereGeometry(0.17,10,8),paint(0xe3b48c,30)); head.position.set(0,1.32,0); gd.add(head);
+    const oar=box(0.07,0.07,3.4,paint(0x8a5a2a,40),0.12,0.6,-1.5); oar.rotation.x=0.45; gd.add(oar); g.add(gd); }
+  g.userData.len=L; return g; }
 
 function laneSpecs(){
   const f=clamp(0.62+(level-1)*0.12,0.62,2.2);
   const roadGap=clamp(2.6-(level-1)*0.22,1.0,2.6), waterGap=clamp(1.25-(level-1)*0.07,0.85,1.25);
   const road=[
-    {gy:7,dir:-1,base:2.3,type:'service',len:CELL*1.7,gap:CELL*5.0*roadGap},
-    {gy:8,dir:1, base:1.8,type:'sedan',  len:CELL*1.7,gap:CELL*5.6*roadGap},
-    {gy:9,dir:-1,base:2.6,type:'limo',   len:CELL*2.8,gap:CELL*6.2*roadGap},
-    {gy:10,dir:1,base:1.6,type:'shuttle',len:CELL*2.6,gap:CELL*6.2*roadGap},
-    {gy:11,dir:-1,base:2.1,type:'sport', len:CELL*1.6,gap:CELL*5.2*roadGap},
+    {gy:7,dir:-1,base:2.3,type:'gwagon',    len:CELL*1.7,gap:CELL*5.0*roadGap},
+    {gy:8,dir:1, base:1.8,type:'tesla',     len:CELL*1.7,gap:CELL*5.6*roadGap},
+    {gy:9,dir:-1,base:2.6,type:'limo',      len:CELL*2.8,gap:CELL*6.2*roadGap},
+    {gy:10,dir:1,base:1.6,type:'cybertruck',len:CELL*2.4,gap:CELL*6.2*roadGap},
+    {gy:11,dir:-1,base:2.1,type:'lambo',    len:CELL*1.6,gap:CELL*5.2*roadGap},
   ];
   const water=[
     {gy:1,dir:1, base:1.6,type:'yacht',    len:CELL*3,  gap:CELL*2.4*waterGap},
-    {gy:2,dir:-1,base:2.0,type:'speedboat',len:CELL*1.8,gap:CELL*2.8*waterGap},
-    {gy:3,dir:1, base:1.2,type:'barge',    len:CELL*4,  gap:CELL*2.2*waterGap},
-    {gy:4,dir:-1,base:2.2,type:'watertaxi',len:CELL*2.2,gap:CELL*2.8*waterGap},
-    {gy:5,dir:1, base:1.5,type:'yacht',    len:CELL*3,  gap:CELL*2.6*waterGap},
+    {gy:2,dir:-1,base:2.0,type:'riva',     len:CELL*1.8,gap:CELL*2.8*waterGap},
+    {gy:3,dir:1, base:1.2,type:'vaporetto',len:CELL*4,  gap:CELL*2.2*waterGap},
+    {gy:4,dir:-1,base:2.2,type:'taxi',     len:CELL*2.2,gap:CELL*2.8*waterGap},
+    {gy:5,dir:1, base:1.5,type:'gondola',  len:CELL*3,  gap:CELL*2.6*waterGap},
   ];
   return [...road,...water].map(l=>({...l,speed:l.base*f,water:l.gy<=5}));
 }
 function buildLanes(){ while(trafficGroup.children.length) trafficGroup.remove(trafficGroup.children[0]); lanes=[];
   for(const spec of laneSpecs()){ const objs=[], spacing=spec.len+spec.gap, span=HALFX+spec.len+6, count=Math.ceil(span*2/spacing), z=rowZ(spec.gy), phase=Math.random()*spacing;
-    for(let i=0;i<count;i++){ const mesh=spec.water?makeCraft(spec.type==='watertaxi'?'watertaxi':spec.type):makeVehicle(spec.type,spec.dir);
-      mesh.rotation.y=spec.dir>0?0:Math.PI; const x=-span+i*spacing+phase; mesh.position.set(x,spec.water?0:0,z); trafficGroup.add(mesh);
+    for(let i=0;i<count;i++){ const mesh=spec.water?makeCraft(spec.type):makeVehicle(spec.type);
+      mesh.rotation.y=spec.dir>0?Math.PI:0; const x=-span+i*spacing+phase; mesh.position.set(x,0,z); trafficGroup.add(mesh);
       objs.push({mesh,x,len:spec.len,pd:0}); }
     lanes.push({...spec,z,objs}); } }
 
@@ -562,7 +620,7 @@ function update(dt){
   // traffic
   for(const lane of lanes){ const span=HALFX+lane.objs[0].len+6;
     for(const o of lane.objs){ o.x+=lane.dir*lane.speed*dt; if(lane.dir>0&&o.x>span)o.x-=span*2; if(lane.dir<0&&o.x<-span)o.x+=span*2;
-      o.mesh.position.x=o.x; if(lane.water) o.mesh.position.y=Math.sin((o.x+lane.z)*0.3+clock.elapsedTime*1.6)*0.07; } }
+      o.mesh.position.x=o.x; if(lane.water) o.mesh.position.y=-0.32+Math.sin((o.x+lane.z)*0.3+clock.elapsedTime*1.6)*0.07; } }
   for(const c of palmAnim) c.rotation.z=Math.sin(clock.elapsedTime*0.8+c.position.x)*0.04;
   for(const b of beacons) b.rotation.y+=dt*0.6;
   if(window._spk) window._spk.offset.x=(clock.elapsedTime*0.03)%1;

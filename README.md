@@ -38,11 +38,12 @@ traffic and craft. The boarding timer is generous — soak in the view.
 ## Layout (faithful to the arcade original)
 
 ```
-        ┌── 5 GATES (terminal / jet-bridges) ──┐   ← goal
-        │   yachts · luggage barges · canal    │   river: ride the craft
-        │   ——— median lounge (safe) ———       │
-        │   limos · car service · shuttles     │   road: dodge the traffic
-        └── red-carpet curb (start) ───────────┘   ← you start here
+        ┌── 5 GATES (terminal / jet-bridges) ──────────────┐   ← goal
+        │  yacht · Riva · vaporetto · water-taxi · gondola │   canal: ride the craft
+        │  ——————— median lounge (safe) ———————            │
+        │  G-Wagon · Tesla · stretch limo · Cybertruck ·   │   road: dodge the traffic
+        │  Lamborghini                                     │
+        └── red-carpet curb (start) ───────────────────────┘   ← you start here
 ```
 
 ## Tech
