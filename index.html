@@ -756,7 +756,13 @@ function hideOverlay(){ document.getElementById('overlay').classList.add('hidden
 
 /* =================== LOOP / RESIZE =================== */
 function renderFrame(){ if(composer) composer.render(); else renderer.render(scene,camera); }
-function animate(){ requestAnimationFrame(animate); const dt=Math.min(clock.getDelta(),0.05);
+let bgPaused=false;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ bgPaused=true; clock.getDelta(); }
+  else{ clock.getDelta(); bgPaused=false; } // discard gap
+});
+function animate(){ requestAnimationFrame(animate); if(bgPaused) return;
+  const dt=Math.min(clock.getDelta(),0.05);
   update(dt); if(frog && state!=='intro') applyCamera(dt);
   if(hintT>0){ hintT-=dt; if(hintT<=0) document.getElementById('hint').style.opacity=0; }
   if(comboT>0){ comboT-=dt; if(comboT<=0) document.getElementById('combo').style.opacity=0; }
