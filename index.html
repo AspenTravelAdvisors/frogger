@@ -27,8 +27,10 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
   color:var(--gold); text-shadow:0 0 12px rgba(232,200,121,.6); }
 .brand small{ display:block; font-family:'Cormorant Garamond',serif; font-size:13px; letter-spacing:4px;
   color:var(--champ); opacity:.85; margin-top:5px; font-weight:600; }
-#muteBtn{ position:absolute; top:max(12px,env(safe-area-inset-top)); right:16px; font-size:14px;
+#muteBtn,#musicBtn{ position:absolute; top:max(12px,env(safe-area-inset-top)); font-size:14px;
   color:var(--gold); pointer-events:auto; cursor:pointer; text-shadow:0 0 12px rgba(232,200,121,.6); }
+#muteBtn{ right:16px; }
+#musicBtn{ right:44px; }
 #dest{ position:absolute; top:max(12px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%); text-align:center; }
 #dest .nb{ font-size:7px; letter-spacing:3px; color:var(--neon); opacity:.9; }
 #dest .city{ font-family:'Cormorant Garamond',serif; font-weight:700; font-size:24px; letter-spacing:5px;
@@ -103,6 +105,7 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
 
 <div id="hud">
   <div class="brand">✈ FROG CLASS<small>2.0 · AERO GRENOUILLE</small></div>
+  <div id="musicBtn">♫</div>
   <div id="muteBtn">♪</div>
   <div id="dest"><div class="nb">— NOW BOARDING —</div><div class="city" id="destCity">ASPEN</div>
     <div class="flt" id="destFlt">FLIGHT FC&nbsp;001 · GATE A</div></div>
@@ -253,8 +256,12 @@ function noiseBurstSched(t,dur,lp,dest,vol){ const a=audio(); if(!a||muted) retu
   const s=a.createBufferSource(); s.buffer=b; const f=a.createBiquadFilter(); f.type='highpass'; f.frequency.value=lp;
   const g=a.createGain(); g.gain.value=vol; s.connect(f).connect(g).connect(dest); s.start(t); }
 function startMusic(){ if(MUS.on) return; const a=audio(); if(!a) return; MUS.on=true; MUS.next=a.currentTime+0.1; MUS.timer=setInterval(musicStep,40); }
+let musicMuted=false;
+function toggleMusic(){ musicMuted=!musicMuted; const b=document.getElementById('musicBtn'); b.style.opacity=musicMuted?.4:1;
+  if(musicGain) musicGain.gain.value=musicMuted?0:0.5; }
 function toggleMute(){ muted=!muted; const b=document.getElementById('muteBtn'); b.textContent=muted?'♪̸':'♪'; b.style.opacity=muted?.4:1;
   if(master) master.gain.value=muted?0:0.9; }
+document.getElementById('musicBtn').addEventListener('click',toggleMusic);
 document.getElementById('muteBtn').addEventListener('click',toggleMute);
 
 /* =================== RENDERER / SCENE =================== */
