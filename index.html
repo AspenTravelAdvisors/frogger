@@ -610,10 +610,21 @@ window.addEventListener('mousemove',e=>lookMove(e.clientX,e.clientY)); window.ad
 canvas.addEventListener('touchstart',e=>{const t=e.touches[0];lookStart(t.clientX,t.clientY);},{passive:true});
 canvas.addEventListener('touchmove',e=>{const t=e.touches[0];lookMove(t.clientX,t.clientY);e.preventDefault();},{passive:false});
 canvas.addEventListener('touchend',lookEnd);
-function hop(dir){ if(state!=='playing')return; let moved=false;
-  if(dir==='up'&&frog.gy>ROW_GATES){frog.gy--;moved=true;} if(dir==='down'&&frog.gy<ROW_START){frog.gy++;moved=true;}
-  if(dir==='left'&&frog.x>cellX(0)+0.1){frog.x-=CELL;moved=true;} if(dir==='right'&&frog.x<cellX(COLS-1)-0.1){frog.x+=CELL;moved=true;}
-  if(!moved)return; frog.x=clamp(frog.x,cellX(0),cellX(COLS-1)); render.hop=1; fov=fovBase+6; SFX.hop(); if(dir==='up') score+=1; updateHUD(); }
+// nearest cardinal grid step for the way the camera is currently looking
+// (gy decreases toward the gates = -Z; gx increases to the right = +X)
+function cardinal(y){ const fx=-Math.sin(y), fz=-Math.cos(y);
+  return Math.abs(fz)>=Math.abs(fx) ? {dgx:0,dgy:fz<0?-1:1} : {dgx:fx>0?1:-1,dgy:0}; }
+function hop(dir){ if(state!=='playing')return;
+  const fwd=cardinal(yaw), right={dgx:-fwd.dgy,dgy:fwd.dgx};
+  const d = dir==='up'?fwd : dir==='down'?{dgx:-fwd.dgx,dgy:-fwd.dgy}
+          : dir==='right'?right : {dgx:-right.dgx,dgy:-right.dgy};
+  let moved=false;
+  if(d.dgy<0 && frog.gy>ROW_GATES){frog.gy--;moved=true;}
+  if(d.dgy>0 && frog.gy<ROW_START){frog.gy++;moved=true;}
+  if(d.dgx<0 && frog.x>cellX(0)+0.1){frog.x-=CELL;moved=true;}
+  if(d.dgx>0 && frog.x<cellX(COLS-1)-0.1){frog.x+=CELL;moved=true;}
+  if(!moved)return; frog.x=clamp(frog.x,cellX(0),cellX(COLS-1)); render.hop=1; fov=fovBase+6; SFX.hop();
+  if(d.dgy<0) score+=1; updateHUD(); }
 
 /* =================== UPDATE =================== */
 function update(dt){
@@ -698,7 +709,9 @@ function drawRadar(){ const w=radar.width,h=radar.height; rctx.clearRect(0,0,w,h
   gateMeshes.forEach(G=>{ rctx.fillStyle=G.filled?'#00ff9a':'rgba(159,232,255,.6)'; rctx.fillRect(xF(cellX(G.gx))-3,yF(0)-2,6,4); });
   for(const lane of lanes) for(const o of lane.objs){ const px=xF(o.x); if(px<-4||px>w+4)continue;
     rctx.fillStyle=lane.water?'#3f9fff':'#ff6a4a'; const ww=Math.max(2,(o.len/HALFX)*(w/2-5)); rctx.fillRect(px-ww/2,yF(lane.gy)-1.5,ww,3); }
-  if(frog){ rctx.fillStyle='#00ff9a'; const fx=xF(render.x),fy=yF(frog.gy); rctx.beginPath(); rctx.moveTo(fx,fy-4); rctx.lineTo(fx-3,fy+3); rctx.lineTo(fx+3,fy+3); rctx.closePath(); rctx.fill(); } }
+  if(frog){ rctx.fillStyle='#00ff9a'; const fx=xF(render.x),fy=yF(frog.gy);
+    const c=cardinal(yaw), r={dgx:-c.dgy,dgy:c.dgx}, ax=fx+c.dgx*5,ay=fy+c.dgy*5,bx=fx-c.dgx*2,by=fy-c.dgy*2;
+    rctx.beginPath(); rctx.moveTo(ax,ay); rctx.lineTo(bx+r.dgx*3.5,by+r.dgy*3.5); rctx.lineTo(bx-r.dgx*3.5,by-r.dgy*3.5); rctx.closePath(); rctx.fill(); } }
 function updateHUD(){ document.getElementById('score').textContent=score; document.getElementById('best').textContent=best;
   document.getElementById('frogs').textContent='✈'.repeat(Math.max(0,lives));
   const g=document.getElementById('gates'); g.innerHTML=''; for(let i=0;i<5;i++){ const c=document.createElement('div'); c.className='gateChip'+(gateMeshes[i]&&gateMeshes[i].filled?' done':''); g.appendChild(c); } }
