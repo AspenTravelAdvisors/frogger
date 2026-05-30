@@ -614,6 +614,7 @@ function resetFrog(){ frog={x:cellX(6),gy:ROW_START,ride:null}; render.x=frog.x;
 function gatesFilled(){ return gateMeshes.filter(G=>G.filled).length; }
 
 function startGame(){
+  enableTilt(); // request motion permission while still inside the tap gesture (iOS)
   hideOverlay(); score=0; lives=3; level=1; combo=0;
   applyEnvironment(level); applyLevel(true); resetFrog();
   audio(); startMusic();
@@ -638,7 +639,7 @@ function bindDpad(id,dir){ const el=document.getElementById(id);
 bindDpad('b-up','up'); bindDpad('b-down','down'); bindDpad('b-left','left'); bindDpad('b-right','right');
 let dragging=false,lx=0,ly=0;
 const lookStart=(x,y)=>{dragging=true;lx=x;ly=y;};
-const lookMove=(x,y)=>{ if(!dragging)return; yaw-=(x-lx)*0.005; pitch=clamp(pitch-(y-ly)*0.005,-1.25,0.85); lx=x; ly=y; };
+const lookMove=(x,y)=>{ if(!dragging)return; yaw+=(x-lx)*0.005; pitch=clamp(pitch-(y-ly)*0.005,-1.25,0.85); lx=x; ly=y; };
 const lookEnd=()=>dragging=false;
 canvas.addEventListener('mousedown',e=>lookStart(e.clientX,e.clientY));
 window.addEventListener('mousemove',e=>lookMove(e.clientX,e.clientY)); window.addEventListener('mouseup',lookEnd);
@@ -659,13 +660,17 @@ function handleOrientation(e){
   tiltPitch = clamp((beta - tiltBase.beta)*tiltSens, -0.8, 0.6);
 }
 function recenterTilt(){ tiltBase=null; tiltYaw=0; tiltPitch=0; }
-(function initTilt(){
+// iOS requires requestPermission() to run inside a user gesture — so enableTilt()
+// is called from the Start button tap (see boot), not at load time.
+function enableTilt(){
   if(tiltOn || typeof DeviceOrientationEvent==='undefined') return;
   const go=()=>{ window.addEventListener('deviceorientation',handleOrientation); tiltOn=true; };
   if(typeof DeviceOrientationEvent.requestPermission==='function')
     DeviceOrientationEvent.requestPermission().then(r=>{ if(r==='granted') go(); }).catch(()=>{});
   else go();
-})();
+}
+// non-iOS browsers (Android/desktop) don't gate behind permission, so wire up at load
+if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission!=='function') enableTilt();
 // double-tap to re-centre tilt neutral
 let lastTap=0;
 canvas.addEventListener('touchend',e=>{
