@@ -19,13 +19,13 @@ html,body{
   touch-action:none; user-select:none; -webkit-user-select:none;
   -webkit-tap-highlight-color:transparent;
 }
-canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh; image-rendering:pixelated; image-rendering:crisp-edges; z-index:0; }
+canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh; z-index:0; }
 
 /* CRT overlay */
 #crt{ position:fixed; inset:0; pointer-events:none; z-index:30;
   background:
     repeating-linear-gradient(0deg, rgba(0,0,0,0.16), rgba(0,0,0,0.16) 1px, transparent 1px, transparent 3px);
-  mix-blend-mode:multiply; opacity:0.55;
+  mix-blend-mode:multiply; opacity:0.28;
 }
 #vig{ position:fixed; inset:0; pointer-events:none; z-index:31;
   background:radial-gradient(ellipse at center, transparent 52%, rgba(0,0,0,0.55) 100%);
@@ -145,7 +145,7 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
   <div id="gates"></div>
   <canvas id="radar" width="84" height="118"></canvas>
   <div id="stats">MILES <b><span id="score">0</span></b><br>BEST <b><span id="best">0</span></b></div>
-  <div id="lives">CLASS · FIRST<div class="frogs" id="frogs">🐸🐸🐸</div></div>
+  <div id="lives">CLASS · FIRST<div class="frogs" id="frogs">✈✈✈</div></div>
   <div id="timerWrap"><div class="lbl">BOARDING CLOSES</div><div id="timerBar"><div id="timerFill"></div></div></div>
   <div id="hint"></div>
 </div>
@@ -164,7 +164,7 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
   <p>You are a frog of <span class="g">impeccable taste</span>, late for a private jet.<br><br>
      Cross the <span class="g">arrivals boulevard</span> and the <span class="g">marina canal</span> to reach your gate.<br><br>
      <span class="g">WASD / ARROWS</span> or the on-screen pad to hop.<br>
-     <span class="g">DRAG</span> to look around — yes, you're a frog.</p>
+     <span class="g">DRAG</span> (or tilt your phone) to look around.</p>
   <div class="rule"></div>
   <button id="startBtn">BOARD NOW</button>
   <div class="loading" id="loadNote" style="display:none">PREPARING THE TARMAC…</div>
@@ -246,8 +246,8 @@ document.getElementById('muteBtn').addEventListener('click',toggleMute);
 
 /* ---------------- THREE setup ---------------- */
 const canvas=document.getElementById('scene');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance'});
-renderer.setPixelRatio(1);
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x070a18);
 scene.fog=new THREE.Fog(0x070a18, 26, 150);
@@ -271,14 +271,14 @@ function box(w,h,d,material,x=0,y=0,z=0){ const m=new THREE.Mesh(BOX,material); 
 /* ---------------- canvas-texture helpers ---------------- */
 function texCanvas(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h;
   draw(c.getContext('2d'),w,h); const t=new THREE.CanvasTexture(c); t.anisotropy=1; return t; }
-function windowTex(accent){ return texCanvas(256,256,(g,w,h)=>{
+function windowTex(accent){ return texCanvas(1024,1024,(g,w,h)=>{
   g.fillStyle='#0a1024'; g.fillRect(0,0,w,h);
   const ax=`#${new THREE.Color(accent).getHexString()}`;
-  for(let y=8;y<h;y+=26) for(let x=8;x<w;x+=22){
+  for(let y=24;y<h;y+=64) for(let x=24;x<w;x+=56){
     const r=Math.random();
     g.fillStyle = r>0.78? ax : (r>0.5? '#f3e7c9' : '#16224a');
     g.globalAlpha = r>0.5? (0.5+Math.random()*0.5):0.5;
-    g.fillRect(x,y,14,16);
+    g.fillRect(x,y,36,42);
   }
   g.globalAlpha=1;
 }); }
@@ -361,7 +361,7 @@ function buildDecor(){
   worldGroup.add(box(80,0.6,16, mat(0x0c1430,{emissive:0x1a2a5a,ei:.5}), 0,26.3, rowZ(ROW_GATES)-12));
 
   // NOW BOARDING banner above gates
-  bannerTex=texCanvas(1024,160,()=>{});
+  bannerTex=texCanvas(2048,320,()=>{});
   bannerMat=new THREE.MeshBasicMaterial({map:bannerTex, transparent:true});
   const bn=new THREE.Mesh(new THREE.PlaneGeometry(56,8.7), bannerMat);
   bn.position.set(0,19, rowZ(ROW_GATES)-6.5); worldGroup.add(bn);
@@ -391,10 +391,10 @@ function buildGates(){
     // landing pad glow
     const pad=box(CELL*0.8,0.08,CELL*0.8, basic(0x00ff88,{opacity:.18}), 0,0.05,0); grp.add(pad);
     // sign
-    const sgnTex=texCanvas(128,64,(g,w,h)=>{ g.fillStyle='#06101f'; g.fillRect(0,0,w,h);
-      g.strokeStyle='#00ff88'; g.lineWidth=4; g.strokeRect(3,3,w-6,h-6);
-      g.fillStyle='#f3e7c9'; g.font='bold 30px monospace'; g.textAlign='center'; g.textBaseline='middle';
-      g.fillText('GATE', w/2, 20); });
+    const sgnTex=texCanvas(512,256,(g,w,h)=>{ g.fillStyle='#06101f'; g.fillRect(0,0,w,h);
+      g.strokeStyle='#00ff88'; g.lineWidth=14; g.strokeRect(10,10,w-20,h-20);
+      g.fillStyle='#f3e7c9'; g.font='bold 120px monospace'; g.textAlign='center'; g.textBaseline='middle';
+      g.fillText('GATE', w/2, 90); });
     const sgnMat=new THREE.MeshBasicMaterial({map:sgnTex,transparent:true});
     const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.3), sgnMat); sign.position.set(0,4.2,0.3); grp.add(sign);
     worldGroup.add(grp);
@@ -408,11 +408,11 @@ function refreshGateSigns(){
     const code=d.gate+(i+1);
     const tex=G.sgnTex; const c=tex.image; const g=c.getContext('2d');
     g.fillStyle='#06101f'; g.fillRect(0,0,c.width,c.height);
-    g.strokeStyle = G.filled? '#00ff88':'#cfe8ff'; g.lineWidth=4; g.strokeRect(3,3,c.width-6,c.height-6);
-    g.fillStyle = G.filled? '#00ff88':'#f3e7c9'; g.font='bold 26px monospace'; g.textAlign='center'; g.textBaseline='middle';
-    g.fillText('GATE '+code, c.width/2, 22);
-    g.font='14px monospace'; g.fillStyle = G.filled? '#00ff88':'#e8c879';
-    g.fillText(G.filled?'BOARDED':'NOW BOARDING', c.width/2, 48);
+    g.strokeStyle = G.filled? '#00ff88':'#cfe8ff'; g.lineWidth=14; g.strokeRect(10,10,c.width-20,c.height-20);
+    g.fillStyle = G.filled? '#00ff88':'#f3e7c9'; g.font='bold 104px monospace'; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText('GATE '+code, c.width/2, 92);
+    g.font='52px monospace'; g.fillStyle = G.filled? '#00ff88':'#e8c879';
+    g.fillText(G.filled?'BOARDED':'NOW BOARDING', c.width/2, 184);
     tex.needsUpdate=true;
     G.pad.material.color.set(G.filled?0x00ff88:0x9fe8ff);
     G.pad.material.opacity=G.filled?0.5:0.18;
@@ -423,12 +423,12 @@ function setBanner(){
   const d=destFor(level); const c=bannerTex.image; const g=c.getContext('2d');
   g.clearRect(0,0,c.width,c.height);
   g.fillStyle='rgba(6,12,26,0.85)'; g.fillRect(0,0,c.width,c.height);
-  g.strokeStyle='#e8c879'; g.lineWidth=3; g.strokeRect(6,6,c.width-12,c.height-12);
+  g.strokeStyle='#e8c879'; g.lineWidth=6; g.strokeRect(12,12,c.width-24,c.height-24);
   g.textAlign='center'; g.textBaseline='middle';
-  g.fillStyle='#00ff88'; g.font='22px "Press Start 2P", monospace';
-  g.fillText('NOW BOARDING', c.width/2, 44);
-  g.fillStyle='#f3e7c9'; g.font='bold 70px "Cormorant Garamond", serif';
-  g.fillText(d.city+'  ✈  FLIGHT FC'+String(level).padStart(3,'0'), c.width/2, 110);
+  g.fillStyle='#00ff88'; g.font='44px "Press Start 2P", monospace';
+  g.fillText('NOW BOARDING', c.width/2, 92);
+  g.fillStyle='#f3e7c9'; g.font='bold 150px "Cormorant Garamond", serif';
+  g.fillText(d.city+'  ✈  FLIGHT FC'+String(level).padStart(3,'0'), c.width/2, 224);
   bannerTex.needsUpdate=true;
 }
 
@@ -498,24 +498,25 @@ function makeCraft(type){
 }
 
 function laneSpecs(){
-  const f = clamp(1 + (level-1)*0.15, 1, 2.6);   // gentle speed ramp
+  // starts very calm and slowly gets busier/faster with each flight
+  const f        = clamp(0.65 + (level-1)*0.12, 0.65, 2.2);   // speed multiplier
+  const roadGap  = clamp(2.6  - (level-1)*0.22, 1.0,  2.6);   // huge openings early -> less traffic
+  const waterGap = clamp(1.25 - (level-1)*0.07, 0.85, 1.25);  // keep plenty of craft to ride on
   // road lanes (gy 7..11)
   const road=[
-    {gy:7,  dir:-1, base:2.6, type:'service', len:CELL*1.7, gap:CELL*4.5},
-    {gy:8,  dir: 1, base:2.0, type:'sedan',   len:CELL*1.7, gap:CELL*5.0},
-    {gy:9,  dir:-1, base:3.0, type:'limo',    len:CELL*2.8, gap:CELL*5.5},
-    {gy:10, dir: 1, base:1.8, type:'shuttle', len:CELL*2.6, gap:CELL*5.5},
-    {gy:11, dir:-1, base:2.4, type:'sport',   len:CELL*1.6, gap:CELL*4.2},
+    {gy:7,  dir:-1, base:2.3, type:'service', len:CELL*1.7, gap:CELL*5.0*roadGap},
+    {gy:8,  dir: 1, base:1.8, type:'sedan',   len:CELL*1.7, gap:CELL*5.6*roadGap},
+    {gy:9,  dir:-1, base:2.6, type:'limo',    len:CELL*2.8, gap:CELL*6.2*roadGap},
+    {gy:10, dir: 1, base:1.6, type:'shuttle', len:CELL*2.6, gap:CELL*6.2*roadGap},
+    {gy:11, dir:-1, base:2.1, type:'sport',   len:CELL*1.6, gap:CELL*5.2*roadGap},
   ];
   const water=[
-    {gy:1, dir: 1, base:1.7, type:'yacht',     len:CELL*3,   gap:CELL*2.6},
-    {gy:2, dir:-1, base:2.2, type:'speedboat', len:CELL*1.8, gap:CELL*3.0},
-    {gy:3, dir: 1, base:1.3, type:'barge',     len:CELL*4,   gap:CELL*2.4},
-    {gy:4, dir:-1, base:2.4, type:'watertaxi', len:CELL*2.2, gap:CELL*3.2},
-    {gy:5, dir: 1, base:1.6, type:'yacht',     len:CELL*3,   gap:CELL*2.8},
+    {gy:1, dir: 1, base:1.6, type:'yacht',     len:CELL*3,   gap:CELL*2.4*waterGap},
+    {gy:2, dir:-1, base:2.0, type:'speedboat', len:CELL*1.8, gap:CELL*2.8*waterGap},
+    {gy:3, dir: 1, base:1.2, type:'barge',     len:CELL*4,   gap:CELL*2.2*waterGap},
+    {gy:4, dir:-1, base:2.2, type:'watertaxi', len:CELL*2.2, gap:CELL*2.8*waterGap},
+    {gy:5, dir: 1, base:1.5, type:'yacht',     len:CELL*3,   gap:CELL*2.6*waterGap},
   ];
-  // ease the very first flights
-  if(level===1){ road.forEach(l=>l.base*=0.7); water.forEach(l=>{l.base*=0.7; l.gap*=0.8;}); }
   return [...road,...water].map(l=>({...l, speed:l.base*f, water:l.gy<=5}));
 }
 
@@ -541,32 +542,6 @@ function buildLanes(){
   }
 }
 
-/* ---------------- frog viewmodel ---------------- */
-const frogView=new THREE.Group(); camera.add(frogView);
-function buildFrogView(){
-  const green=mat(0x2fae4a,{emissive:0x0c5a22,ei:.45,flat:true});
-  const dark =mat(0x1c7a35,{emissive:0x083a16,ei:.4});
-  // snout (seen when looking down)
-  const snout=box(0.62,0.3,0.5, green, 0,-0.52,-0.78); frogView.add(snout);
-  frogView.add(box(0.66,0.12,0.2, dark, 0,-0.4,-1.0)); // lip
-  frogView.add(box(0.08,0.06,0.06, basic(0x05140a), -0.16,-0.42,-1.05));
-  frogView.add(box(0.08,0.06,0.06, basic(0x05140a),  0.16,-0.42,-1.05));
-  // eye bulges (top corners of view)
-  for(const sx of [-1,1]){
-    const eye=new THREE.Group(); eye.position.set(sx*0.34,0.12,-0.5);
-    eye.add(new THREE.Mesh(new THREE.SphereGeometry(0.2,10,8), green));
-    const white=new THREE.Mesh(new THREE.SphereGeometry(0.12,10,8), basic(0xf3e7c9)); white.position.set(0,0.02,-0.12); eye.add(white);
-    const pup=new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8), basic(0x07120a)); pup.position.set(0,0.02,-0.2); eye.add(pup);
-    frogView.add(eye);
-  }
-  // front hands
-  for(const sx of [-1,1]){
-    const hand=new THREE.Group(); hand.position.set(sx*0.5,-0.66,-0.92); hand.rotation.z=sx*0.2;
-    hand.add(box(0.34,0.1,0.4, green));
-    for(let t=0;t<3;t++) hand.add(box(0.09,0.08,0.26, green, (t-1)*0.12,0,-0.3));
-    frogView.add(hand);
-  }
-}
 
 /* ---------------- game state ---------------- */
 let state='menu';     // menu | intro | playing | dead | win | over
@@ -574,7 +549,8 @@ let score=0, best=0, lives=3, level=1;
 let frog=null;        // {x:worldX, gy, ride}
 let render={x:0,y:EYE,z:0, hop:0};
 let yaw=0, pitch=0, introT=0;
-let timeMax=42, timeLeft=42;
+let tiltOn=false, tiltYaw=0, tiltPitch=0, tiltBase=null; const tiltSens=0.028;
+let timeMax=55, timeLeft=55;
 let shake=0;
 
 function resetFrog(){
@@ -589,7 +565,8 @@ function startGame(){
   score=0; lives=3; level=1;
   applyLevel(true);
   resetFrog();
-  state='intro'; introT=0; pitch=-1.1; yaw=0;
+  state='intro'; introT=0; pitch=-0.25; yaw=0;
+  enableTilt(); recenterTilt();
   SFX.chime();
   showBanner();
   updateHUD();
@@ -658,6 +635,30 @@ lookpad.addEventListener('touchstart',e=>{ const t=e.touches[0]; lookStart(t.cli
 lookpad.addEventListener('touchmove',e=>{ const t=e.touches[0]; lookMove(t.clientX,t.clientY); e.preventDefault(); },{passive:false});
 lookpad.addEventListener('touchend',e=>{ lookEnd(); e.preventDefault(); },{passive:false});
 
+// ---- accelerometer / device-tilt look (augments drag) ----
+function handleOrientation(e){
+  if(e.beta==null||e.gamma==null) return;
+  let beta=e.beta, gamma=e.gamma;
+  // remap when the device is held in landscape
+  const so=(screen.orientation&&screen.orientation.angle)||window.orientation||0;
+  if(so===90){ const t=beta; beta=-gamma; gamma=t; }
+  else if(so===-90||so===270){ const t=beta; beta=gamma; gamma=-t; }
+  if(!tiltBase) tiltBase={beta,gamma};       // first reading = neutral pose
+  tiltYaw   = clamp(-(gamma - tiltBase.gamma)*tiltSens, -1.3, 1.3);
+  tiltPitch = clamp(-(beta  - tiltBase.beta )*tiltSens, -0.8, 0.6);
+}
+function recenterTilt(){ tiltBase=null; tiltYaw=0; tiltPitch=0; }
+function enableTilt(){
+  if(tiltOn || typeof DeviceOrientationEvent==='undefined') return;
+  const go=()=>{ window.addEventListener('deviceorientation', handleOrientation); tiltOn=true; };
+  if(typeof DeviceOrientationEvent.requestPermission==='function'){
+    DeviceOrientationEvent.requestPermission().then(s=>{ if(s==='granted') go(); }).catch(()=>{});
+  } else { go(); }
+}
+// double-tap the view to re-center the tilt neutral
+let lastTap=0;
+canvas.addEventListener('touchend',()=>{ const n=Date.now(); if(n-lastTap<300) recenterTilt(); lastTap=n; });
+
 function hop(dir){
   if(state!=='playing') return;
   let moved=false;
@@ -692,11 +693,11 @@ function update(dt){
 
   if(state==='intro'){
     introT+=dt;
-    // sweep from looking-down (see frog body) up to forward
-    const t=clamp(introT/2.0,0,1);
-    pitch = -1.1*(1-easeIO(t));
-    yaw = Math.sin(t*Math.PI)*0.5*(1-t);
-    if(introT>2.2){ state='playing'; showHint('LOOK AROUND — YOU\'RE A FROG.<br>HOP TO YOUR GATE.'); }
+    // brief establishing pan, then play
+    const t=clamp(introT/1.4,0,1);
+    pitch = -0.25*(1-easeIO(t));
+    yaw = Math.sin(t*Math.PI)*0.35*(1-t);
+    if(introT>1.5){ state='playing'; showHint('HOP TO YOUR GATE.<br>DRAG OR TILT TO LOOK · DOUBLE-TAP TO RE-CENTER.'); }
   }
 
   if(state==='playing'){
@@ -731,7 +732,7 @@ function update(dt){
   }
 
   if(state==='dead'){ deadT-=dt; if(deadT<=0){ if(lives<=0) gameOver(); else { resetFrog(); state='playing'; pitch=clamp(pitch,-0.4,0.4);} } }
-  if(state==='win'){  winT-=dt;  if(winT<=0){ level++; applyLevel(false); resetFrog(); state='intro'; introT=0; pitch=-0.9; SFX.chime(); showBanner(); updateHUD(); } }
+  if(state==='win'){  winT-=dt;  if(winT<=0){ level++; applyLevel(false); resetFrog(); state='intro'; introT=0; pitch=-0.2; recenterTilt(); SFX.chime(); showBanner(); updateHUD(); } }
 }
 
 let deadT=0, winT=0;
@@ -776,10 +777,7 @@ function applyCamera(dt){
   let sx=0, sy=0;
   if(shake>0){ shake=Math.max(0,shake-dt*2.2); sx=(Math.random()-.5)*shake*0.6; sy=(Math.random()-.5)*shake*0.6; }
   camera.position.set(render.x+sx, render.y+sy, render.z);
-  camera.rotation.set(pitch, yaw, 0, 'YXZ');
-  // viewmodel idle bob + strafe lean
-  frogView.position.y=Math.sin(clock.elapsedTime*2)*0.012;
-  frogView.rotation.z=clamp((frog?frog.x-render.x:0)*0.04,-0.12,0.12);
+  camera.rotation.set(clamp(pitch+tiltPitch,-1.3,0.9), yaw+tiltYaw, 0, 'YXZ');
 }
 
 function render3D(){ renderer.render(scene,camera); }
@@ -814,7 +812,7 @@ function drawRadar(){
 function updateHUD(){
   document.getElementById('score').textContent=score;
   document.getElementById('best').textContent=best;
-  document.getElementById('frogs').textContent='🐸'.repeat(Math.max(0,lives));
+  document.getElementById('frogs').textContent='✈'.repeat(Math.max(0,lives));
   const g=document.getElementById('gates'); g.innerHTML='';
   for(let i=0;i<5;i++){ const c=document.createElement('div');
     c.className='gateChip'+(gateMeshes[i]&&gateMeshes[i].filled?' done':''); g.appendChild(c); }
@@ -847,10 +845,8 @@ function animate(){
 /* ---------------- resize (retro internal res) ---------------- */
 function resize(){
   const cssW=window.innerWidth, cssH=window.innerHeight;
-  const maxDim=560; let iw,ih;
-  if(cssW>=cssH){ iw=Math.min(maxDim,cssW); ih=Math.round(iw*cssH/cssW); }
-  else { ih=Math.min(maxDim,cssH); iw=Math.round(ih*cssW/cssH); }
-  renderer.setSize(iw,ih,false);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  renderer.setSize(cssW,cssH,false);
   canvas.style.width=cssW+'px'; canvas.style.height=cssH+'px';
   camera.aspect=cssW/cssH; camera.updateProjectionMatrix();
   const touch = window.matchMedia('(pointer:coarse)').matches || cssW<=820;
@@ -860,7 +856,7 @@ function resize(){
 window.addEventListener('resize',resize);
 
 /* ---------------- boot ---------------- */
-buildStatic(); buildDecor(); buildGates(); buildLanes(); buildFrogView(); refreshGateSigns(); setBanner();
+buildStatic(); buildDecor(); buildGates(); buildLanes(); refreshGateSigns(); setBanner();
 resize();
 // idle preview camera (slow pan over the scene before BOARD NOW)
 camera.position.set(0,EYE,rowZ(ROW_START));
