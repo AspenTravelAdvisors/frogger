@@ -27,10 +27,11 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
   color:var(--gold); text-shadow:0 0 12px rgba(232,200,121,.6); }
 .brand small{ display:block; font-family:'Cormorant Garamond',serif; font-size:13px; letter-spacing:4px;
   color:var(--champ); opacity:.85; margin-top:5px; font-weight:600; }
-#muteBtn,#musicBtn{ position:absolute; top:max(12px,env(safe-area-inset-top)); font-size:14px;
+#muteBtn,#musicBtn,#fsBtn{ position:absolute; top:max(12px,env(safe-area-inset-top)); font-size:14px;
   color:var(--gold); pointer-events:auto; cursor:pointer; text-shadow:0 0 12px rgba(232,200,121,.6); }
 #muteBtn{ right:16px; }
-#musicBtn{ right:44px; }
+#musicBtn{ right:40px; }
+#fsBtn{ right:66px; display:none; }
 #dest{ position:absolute; top:max(12px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%); text-align:center; }
 #dest .nb{ font-size:7px; letter-spacing:3px; color:var(--neon); opacity:.9; }
 #dest .city{ font-family:'Cormorant Garamond',serif; font-weight:700; font-size:24px; letter-spacing:5px;
@@ -60,6 +61,14 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
   text-shadow:0 0 16px var(--neon); animation:rise 1s ease-out forwards; }
 @keyframes rise{ 0%{opacity:0; transform:translate(-50%,10px) scale(.8);} 15%{opacity:1;} 100%{opacity:0; transform:translate(-50%,-46px) scale(1.1);} }
 
+/* portrait: stack dest below brand, radar to bottom-right */
+@media (orientation:portrait){
+  #dest{ top:calc(max(12px,env(safe-area-inset-top)) + 46px); }
+  #dest .city{ font-size:20px; }
+  #gates{ top:calc(max(12px,env(safe-area-inset-top)) + 114px); }
+  #combo{ top:calc(max(12px,env(safe-area-inset-top)) + 136px); }
+  #radar{ top:auto; bottom:calc(max(16px,env(safe-area-inset-bottom)) + 58px); width:74px; height:104px; }
+}
 /* d-pad */
 #dpad{ position:fixed; z-index:25; display:none; left:50%; transform:translateX(-50%);
   bottom:max(28px,calc(env(safe-area-inset-bottom) + 22px)); flex-direction:column; align-items:center; gap:7px; pointer-events:none; }
@@ -105,6 +114,7 @@ canvas#scene{ display:block; position:fixed; inset:0; width:100vw; height:100vh;
 
 <div id="hud">
   <div class="brand">✈ FROG CLASS<small>2.0 · AERO GRENOUILLE</small></div>
+  <div id="fsBtn">⛶</div>
   <div id="musicBtn">♫</div>
   <div id="muteBtn">♪</div>
   <div id="dest"><div class="nb">— NOW BOARDING —</div><div class="city" id="destCity">ASPEN</div>
@@ -263,6 +273,20 @@ function toggleMute(){ muted=!muted; const b=document.getElementById('muteBtn');
   if(master) master.gain.value=muted?0:0.9; }
 document.getElementById('musicBtn').addEventListener('click',toggleMusic);
 document.getElementById('muteBtn').addEventListener('click',toggleMute);
+(function initFs(){
+  const btn=document.getElementById('fsBtn');
+  const rfs=document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen;
+  const efs=document.exitFullscreen||document.webkitExitFullscreen;
+  if(!rfs) return;
+  btn.style.display='block';
+  btn.addEventListener('click',()=>{
+    const full=document.fullscreenElement||document.webkitFullscreenElement;
+    if(full) efs.call(document); else rfs.call(document.documentElement).catch(()=>{});
+  });
+  const upd=()=>{ btn.textContent=(document.fullscreenElement||document.webkitFullscreenElement)?'✕':'⛶'; };
+  document.addEventListener('fullscreenchange',upd);
+  document.addEventListener('webkitfullscreenchange',upd);
+})();
 
 /* =================== RENDERER / SCENE =================== */
 const canvas=document.getElementById('scene');
